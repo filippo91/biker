@@ -1,1 +1,1 @@
-# Skeleton for biker race application (LSINF2345 Project)
+# Biker race application (LSINF2345 Project)
