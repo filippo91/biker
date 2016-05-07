@@ -1,22 +1,33 @@
 -module(biker).
--compile({no_auto_import,[get/1]}).
--compile({no_auto_import,[put/2]}).
--import(kvstore, [get/1, put/2]).
 -include("biker.hrl").
 -include_lib("riak_core/include/riak_core_vnode.hrl").
+-include("msgy.hrl").
 
 -export([
          start_race/2,
-         stop_race/1,
+         info_race/2,
          ping/0
         ]).
 
 %% Public API
-start_race(Key, Value) ->  
-    put(Key, Value).
+start_race(BikerId, N) ->  
+    Round = 0,
+    if BikerId =:= 0 ->
+        round_master(BikerId, Round, N)
+    end,
+    round_node(BikerId, Round).
 
-stop_race(Key) ->
-    get(Key).
+info_race(BikerId, Round) ->
+    biker_repository:get_status(BikerId, Round).
+    
+round_master(BikerId, Round, N) ->
+    N,
+    Status = status_repository:create_status(),
+    biker_repository:save_status(BikerId, Round, Status).
+
+round_node(BikerId, Round) ->
+    BikerId, 
+    Round.
 
 %% @doc Pings a random vnode to make sure communication is functional
 ping() ->
