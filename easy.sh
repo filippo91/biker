@@ -30,12 +30,12 @@ ping)
  
   ;;
 clean)
-    rm -rf dev/dev{1..3}/data/ring/*
-    rm -rf dev/dev{1..3}/data/cluster_meta/*
+    sudo rm -rf dev/dev{1..3}/data/ring/*
+    sudo rm -rf dev/dev{1..3}/data/cluster_meta/*
     ;;
 join)
-    rm -rf dev/dev{1..3}/data/ring/*
-    rm -rf dev/dev{1..3}/data/cluster_meta/*
+    sudo rm -rf dev/dev{1..3}/data/ring/*
+    sudo rm -rf dev/dev{1..3}/data/cluster_meta/*
     for d in dev/dev{2,3}   
     do  
         $d/bin/biker-admin join biker1@127.0.0.1
