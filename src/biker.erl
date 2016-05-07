@@ -1,12 +1,22 @@
 -module(biker).
+-compile({no_auto_import,[get/1]}).
+-compile({no_auto_import,[put/2]}).
+-import(kvstore, [get/1, put/2]).
 -include("biker.hrl").
 -include_lib("riak_core/include/riak_core_vnode.hrl").
 
 -export([
+         start_race/2,
+         stop_race/1,
          ping/0
         ]).
 
 %% Public API
+start_race(Key, Value) ->  
+    put(Key, Value).
+
+stop_race(Key) ->
+    get(Key).
 
 %% @doc Pings a random vnode to make sure communication is functional
 ping() ->

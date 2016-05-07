@@ -24,6 +24,22 @@ init(_Args) ->
                   {riak_core_vnode_master, start_link, [biker_vnode]},
                   permanent, 5000, worker, [riak_core_vnode_master]},
 
-    { ok,
+    KVStore = { kvstore_vnode_master,
+                  {riak_core_vnode_master, start_link, [kvstore_vnode]},
+                  permanent, 5000, worker, [riak_core_vnode_master]},
+
+    Dht     = { kvstore_dht_vnode_master,
+                  {riak_core_vnode_master, start_link, [kvstore_dht_vnode]},
+                  permanent, 5000, worker, [riak_core_vnode_master]},
+        
+    ModifyFSMs = {kvstore_modify_fsm_sup,
+                 {kvstore_modify_fsm_sup, start_link, []},
+                 permanent, infinity, supervisor, [kvstore_modify_fsm_sup]},
+
+    GetFSMs = {kvstore_get_fsm_sup,
+               {kvstore_get_fsm_sup, start_link, []},
+               permanent, infinity, supervisor, [kvstore_get_fsm_sup]},
+
+    { ok, 
         { {one_for_one, 5, 10},
-          [VMaster]}}.
+          [VMaster, KVStore, Dht, ModifyFSMs, GetFSMs]}}.

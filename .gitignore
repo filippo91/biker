@@ -1,2 +1,11 @@
 ebin/
 deps/
+Install
+activate
+bin/
+dev/
+erts-5.10.1/
+lib/
+misc/
+releases/
+usr/
