@@ -1,15 +1,20 @@
 -module(biker_repository).
 -export([
         save_status/3, 
+        save_decision/3, 
         get_status/2
         ]).
 
 save_status(BikerId, Round, Status) ->
-    BikerKey=generate_key(BikerId, Round),
+    BikerKey=generate_key(BikerId, Round, "status"),
     kvstore:put(BikerKey, Status). 
 
+save_decision(BikerId, Round, Decision) ->
+    BikerKey=generate_key(BikerId, Round, "decision"),
+    kvstore:put(BikerKey, Decision). 
+
 get_status(BikerId, Round)->
-    BikerKey=generate_key(BikerId, Round),
+    BikerKey=generate_key(BikerId, Round, "status"),
     kvstore:get(BikerKey).
 
 %%%===================================================================
@@ -17,5 +22,5 @@ get_status(BikerId, Round)->
 %%%===================================================================
 
 %% @private
-generate_key(BikerId, Round) ->
-    [BikerId, "_status_",Round]. 
+generate_key(BikerId, Round, Type) ->
+    [BikerId, Type,Round]. 
