@@ -3,4 +3,4 @@
 -endif.
 -define(ROUND_DURATION, 10000).
 -define(N_ROUND, 10).
--define(N_BIKER, 3).
+-define(N_BIKER, 1).
