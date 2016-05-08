@@ -1,4 +1,4 @@
-ebin/
+ebin/*.beam
 deps/
 Install
 activate
