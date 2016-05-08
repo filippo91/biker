@@ -6,8 +6,13 @@ cmd=$1
 dev=$2
 
 case $cmd in
-build)
-    make
+build) 
+    sudo rm -rf dev/dev{1..3}/data/ring/*
+    sudo rm -rf dev/dev{1..3}/data/cluster_meta/*
+    for d in dev/dev*
+    do  
+        sudo $d/bin/biker stop
+    done
     make devrel
     ;;
 start)
