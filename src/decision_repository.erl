@@ -5,7 +5,7 @@
 create_decision() ->
     #decision{strategy=myself,
              player=0,
-             speed=100}.
+             speed=1}.
 
 create_decision(Strategy, Player, Speed) ->
     #decision{strategy=Strategy,
