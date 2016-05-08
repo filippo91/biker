@@ -4,4 +4,4 @@
 -define(ROUND_DURATION, 10000).
 -define(N_ROUND, 1).
 -define(N_BIKER, 0).
--define(DISTANCE, 100).
+-define(DISTANCE, 100.0).

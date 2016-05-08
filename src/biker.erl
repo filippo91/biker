@@ -29,13 +29,13 @@ put_info(BikerId, Round) ->
 
 info_race(BikerId, Round) ->
     {ok,InitialStatus} = biker_repository:get_status(BikerId, Round),
-    io:format("Distance: ~B~nEnergy: ~f~nPosition: ~B~nSpeed: ~B~n",  [InitialStatus#status.distance, InitialStatus#status.energy, InitialStatus#status.position, InitialStatus#status.speed]),
+    io:format("Distance: ~f~nEnergy: ~f~nPosition: ~f~nSpeed: ~f~n",  [InitialStatus#status.distance, InitialStatus#status.energy, InitialStatus#status.position, InitialStatus#status.speed]),
     {ok, Decision} = biker_repository:get_decision(BikerId, Round),
-    io:format("Decision:~n Strategy: ~s~nSpeed~B~n",  [Decision#decision.strategy, Decision#decision.speed]).
+    io:format("Decision:~n Strategy: ~s~nSpeed~f~n",  [Decision#decision.strategy, Decision#decision.speed]).
 
 round_master(?N_BIKER, ?N_ROUND-1) ->
     NewStatus = update_status(?N_BIKER, ?N_ROUND-1),
-    %io:format("Distance: ~B~nEnergy: ~f~nPosition: ~B~nSpeed: ~B~n",  [NewStatus#status.distance, NewStatus#status.energy, NewStatus#status.position, NewStatus#status.speed]), 
+    %io:format("Distance: ~f~nEnergy: ~f~nPosition: ~f~nSpeed: ~f~n",  [NewStatus#status.distance, NewStatus#status.energy, NewStatus#status.position, NewStatus#status.speed]), 
     biker_repository:save_status(?N_BIKER, ?N_ROUND, NewStatus);
 
 round_master(?N_BIKER, Round) ->
@@ -52,8 +52,8 @@ round_node(BikerId, ?N_ROUND) ->
     %timer:kill_after(?ROUND_DURATION, spawn(biker, user_prompt, [BikerId, ?N_ROUND]));
     %% last round -> print status and exit
     {ok, Status} = biker_repository:get_status(BikerId, ?N_ROUND),
-    io:format("[ROUND ~B]Your Final Result:~n", [?N_ROUND]),
-    io:format("Distance: ~B~nEnergy: ~f~nPosition: ~B~nSpeed: ~B~n",  [Status#status.distance, Status#status.energy, Status#status.position, Status#status.speed]);
+    io:format("Your Final Result:~n"),
+    io:format("Distance: ~f~nEnergy: ~f~nPosition: ~f~nSpeed: ~f~n",  [Status#status.distance, Status#status.energy, Status#status.position, Status#status.speed]);
 
 round_node(BikerId, Round) ->
     timer:apply_after(?ROUND_DURATION, biker, round_node, [BikerId, Round+1]),
@@ -70,18 +70,22 @@ update_status(BikerId, Round) ->
             Position = Status#status.position + Speed * 10,
             Energy = Status#status.energy - 0.12 * math:pow(Speed, 2),
             NewStatus = status_repository:create_status(?DISTANCE, Energy, Position, Speed),
-            %io:format("Distance: ~B~nEnergy: ~f~nPosition: ~B~nSpeed: ~B~n",  [NewStatus#status.distance, NewStatus#status.energy, NewStatus#status.position, NewStatus#status.speed]),
+            %io:format("Distance: ~f~nEnergy: ~f~nPosition: ~f~nSpeed: ~f~n",  [NewStatus#status.distance, NewStatus#status.energy, NewStatus#status.position, NewStatus#status.speed]),
             NewStatus;
         behind -> 
             'cane';
         boost ->
-            'gatto'
+            Speed = 3.87 * math:sqrt(Status#status.energy),
+            Position = Status#status.position + Speed * 10,
+            Energy = 0.0,
+            NewStatus = status_repository:create_status(?DISTANCE, Energy, Position, Speed),
+            NewStatus
     end.
 
 user_prompt(BikerId, Round) ->
     io:format("Your Status (Round ~p, BikerId ~p):~n", [Round, BikerId]),
     {ok, Status} = biker_repository:get_status(BikerId, Round),
-    io:format("Distance: ~B~nEnergy: ~f~nPosition: ~B~nSpeed: ~B~n",  [Status#status.distance, Status#status.energy, Status#status.position, Status#status.speed]),
+    io:format("Distance: ~f~nEnergy: ~f~nPosition: ~f~nSpeed: ~f~n",  [Status#status.distance, Status#status.energy, Status#status.position, Status#status.speed]),
     {ok, Strategy} = io:read("Strategy> "),
     io:format("Strategy: ~s~n", [Strategy]),
     case Strategy of
@@ -92,7 +96,7 @@ user_prompt(BikerId, Round) ->
             {ok, Player} = io:read("Who?> "),
             Speed = 0;
         boost ->
-            Player = Speed = 0
+            Speed = Player = 0
     end,
     Decision = decision_repository:create_decision(Strategy, Player, Speed),
     biker_repository:save_decision(BikerId, Round, Decision).
