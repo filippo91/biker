@@ -49,6 +49,9 @@ join)
 attach) 
     sudo ./dev/dev$dev/bin/biker attach
     ;;
+status)
+    ./dev/dev1/bin/biker-admin member_status
+    ;;
 *)
   echo "WTF did you type? :D"
   echo "commands available: " ${cmd_list[*]}
