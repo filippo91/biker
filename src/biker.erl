@@ -7,8 +7,7 @@
          start_race/1,
          put_info/2,
          info_race/2,
-         ping/0,
-         user_prompt/2
+         ping/0
         ]).
 
 %% Public API
@@ -40,7 +39,12 @@ round_node(BikerId, ?N_ROUND) ->
     BikerId, ?N_ROUND;
 
 round_node(BikerId, Round) ->
-    Input = user_prompt(BikerId, Round),
+    StillEnergy = check_if_energy(BikerId, Round),
+    if StillEnergy == true -> 
+            Input = user_prompt();
+        true -> 
+            Input = {game_over, ?DEFAULT_SPEED, ?N_BIKER}
+    end,
     set_decision(Input, BikerId, Round),
     notify_decision(BikerId, Round),
     wait_for_decisions(0,Round),
@@ -96,10 +100,13 @@ update_status(BikerId, Round) ->
             NewStatus;
         behind ->
             PlayerId = Decision#decision.player,
-            if BikerId < PlayerId ->
-                {ok,PlayerDecision} = biker_repository:get_decision(PlayerId, Round),
-                Speed = PlayerDecision#decision.speed;
-                true -> Speed = ?DEFAULT_SPEED
+            {ok,PlayerDecision} = biker_repository:get_decision(PlayerId, Round),
+            if  PlayerDecision#decision.strategy == behind, 
+                PlayerDecision#decision.player == BikerId,
+                BikerId > PlayerId ->
+                    Speed = ?DEFAULT_SPEED;
+                true ->
+                    Speed = PlayerDecision#decision.speed
             end,
             Position = Status#status.position + Speed,
             Energy = Status#status.energy - 0.06 * math:pow(Speed, 2),
@@ -109,28 +116,37 @@ update_status(BikerId, Round) ->
                 
         boost ->
             Speed = 3.87 * math:sqrt(Status#status.energy),
-            Position = Status#status.position + Speed * 10,
+            Position = Status#status.position + Speed,
             Energy = 0.0,
             NewStatus = status_repository:create_status(?DISTANCE, Energy, Position, Speed),
+            NewStatus;
+        game_over -> 
+            NewStatus = Status,
             NewStatus
     end.
 
-user_prompt(BikerId, Round) ->
+check_if_energy(BikerId, Round) ->
     io:format("Your Status (Round ~p, BikerId ~p):~n", [Round, BikerId]),
     {ok, Status} = biker_repository:get_status(BikerId, Round),
     io:format("Distance: ~f~nEnergy: ~f~nPosition: ~f~nSpeed: ~f~n",  [Status#status.distance, Status#status.energy, Status#status.position, Status#status.speed]),
+    if Status#status.energy > 0 -> true;
+        true -> false
+    end.
+
+user_prompt() ->
     {ok, Strategy} = io:read("Strategy> "),
     io:format("Strategy: ~s~n", [Strategy]),
     case Strategy of
         myself -> 
             {ok, Input} = io:read("Speed>"),
             Speed = float(Input),
-            Player = 100;
+            Player = ?N_BIKER;
         behind ->
             {ok, Player} = io:read("Who?> "),
-            Speed = 0;
+            Speed = ?DEFAULT_SPEED;
         boost ->
-            Speed = Player = 0
+            Speed = ?DEFAULT_SPEED,
+            Player = ?N_BIKER
     end,
     {Strategy, Speed, Player}.
 
