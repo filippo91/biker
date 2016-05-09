@@ -1,4 +1,4 @@
 %% msgy.hrl
 
--record(status, {distance, energy, position, speed}).
+-record(status, {id, distance, energy, position, speed}).
 -record(decision, {strategy, player, speed}).

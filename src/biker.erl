@@ -13,12 +13,12 @@
 %% Public API
 start_race(BikerId) ->  
     Round = 0,
-    InitialStatus = status_repository:create_status(),
+    InitialStatus = status_repository:create_status(BikerId),
     biker_repository:save_status(BikerId, Round, InitialStatus),
     round_node(BikerId, 0).
 
 put_info(BikerId, Round) ->
-    InitialStatus = status_repository:create_status(),
+    InitialStatus = status_repository:create_status(BikerId),
     biker_repository:save_status(BikerId, Round, InitialStatus). 
 
 info_race(BikerId, Round) ->
@@ -41,11 +41,14 @@ round_node(BikerId, ?N_ROUND) ->
 round_node(BikerId, Round) ->
     StillEnergy = check_if_energy(BikerId, Round),
     if StillEnergy == true -> 
-            Input = user_prompt();
+            Input = wait_cmd(?PROMPT_TIMEOUT),
+            if Input == timeout -> Decision = {timeout, ?DEFAULT_SPEED, ?N_BIKER};
+                true -> Decision = Input
+            end;
         true -> 
-            Input = {game_over, ?DEFAULT_SPEED, ?N_BIKER}
+            Decision = {game_over, ?DEFAULT_SPEED, ?N_BIKER}
     end,
-    set_decision(Input, BikerId, Round),
+    set_decision(Decision, BikerId, Round),
     notify_decision(BikerId, Round),
     wait_for_decisions(0,Round),
     NewStatus = update_status(BikerId, Round),
@@ -55,11 +58,12 @@ round_node(BikerId, Round) ->
     round_node(BikerId, Round+1).
 
 show_results(UpdatedView, Round) ->
+    SortedUpdatedView = lists:sort(fun(A, B) -> A#status.position > B#status.position end, UpdatedView),
     io:format("State of the race at Round ~p~n",[Round]),
-    [ print_state(Biker)  || Biker <- UpdatedView].
+    [ print_state(Biker)  || Biker <- SortedUpdatedView].
 
 print_state(Biker) ->
-    io:format("Distance: ~f~nEnergy: ~f~nPosition: ~f~nSpeed: ~f~n",  [Biker#status.distance, Biker#status.energy, Biker#status.position, Biker#status.speed]).
+    io:format("BikerId: ~B~nDistance: ~f~nEnergy: ~f~nPosition: ~f~nSpeed: ~f~n",  [Biker#status.id, Biker#status.distance, Biker#status.energy, Biker#status.position, Biker#status.speed]).
 
 notify_decision(BikerId, Round) ->
     io:format("notify decision ~p~n", [Round]),
@@ -95,7 +99,7 @@ update_status(BikerId, Round) ->
             Speed = Decision#decision.speed,
             Position = Status#status.position + Speed,
             Energy = Status#status.energy - 0.12 * math:pow(Speed, 2),
-            NewStatus = status_repository:create_status(?DISTANCE, Energy, Position, Speed),
+            NewStatus = status_repository:create_status(BikerId, ?DISTANCE, Energy, Position, Speed),
             %io:format("Distance: ~f~nEnergy: ~f~nPosition: ~f~nSpeed: ~f~n",  [NewStatus#status.distance, NewStatus#status.energy, NewStatus#status.position, NewStatus#status.speed]),
             NewStatus;
         behind ->
@@ -111,14 +115,21 @@ update_status(BikerId, Round) ->
             Position = Status#status.position + Speed,
             Energy = Status#status.energy - 0.06 * math:pow(Speed, 2),
             
-            NewStatus = status_repository:create_status(?DISTANCE, Energy, Position, Speed),
+            NewStatus = status_repository:create_status(BikerId, ?DISTANCE, Energy, Position, Speed),
                     NewStatus;
                 
         boost ->
             Speed = 3.87 * math:sqrt(Status#status.energy),
             Position = Status#status.position + Speed,
             Energy = 0.0,
-            NewStatus = status_repository:create_status(?DISTANCE, Energy, Position, Speed),
+            NewStatus = status_repository:create_status(BikerId, ?DISTANCE, Energy, Position, Speed),
+            NewStatus;
+        timeout -> 
+            MaxSpeed = math:sqrt(Status#status.energy / 0.12),
+            Speed = lists:min([Status#status.speed, MaxSpeed]),
+            Energy = Status#status.energy - 0.12 * math:pow(Speed, 2),
+            Position = Status#status.position + Speed,
+            NewStatus = status_repository:create_status(BikerId, ?DISTANCE, Energy, Position, Speed),
             NewStatus;
         game_over -> 
             NewStatus = Status,
@@ -150,7 +161,16 @@ user_prompt() ->
     end,
     {Strategy, Speed, Player}.
 
-    
+wait_cmd(Timeout) ->
+    Parent = self(),
+    Pid = spawn(fun() -> Parent ! user_prompt() end),
+    receive
+        Data -> Data
+    after Timeout ->
+        exit(Pid, kill),
+        timeout
+    end.
+ 
 %% @doc Pings a random vnode to make sure communication is functional
 ping() ->
     DocIdx = riak_core_util:chash_key({<<"ping">>, term_to_binary(now())}),
