@@ -3,7 +3,9 @@
         save_status/3, 
         save_decision/3, 
         get_status/2,
-        get_decision/2
+        get_decision/2,
+        get_notification/2,
+        set_notification/2
         ]).
 
 save_status(BikerId, Round, Status) ->
@@ -14,13 +16,21 @@ save_decision(BikerId, Round, Decision) ->
     BikerKey=generate_key(BikerId, Round, "decision"),
     kvstore:put(BikerKey, Decision). 
 
-get_status(BikerId, Round)->
+get_status(BikerId, Round) ->
     BikerKey=generate_key(BikerId, Round, "status"),
     kvstore:get(BikerKey).
 
-get_decision(BikerId, Round)->
+get_decision(BikerId, Round) ->
     BikerKey=generate_key(BikerId, Round, "decision"),
     kvstore:get(BikerKey).
+
+get_notification(BikerId, Round) ->
+    BikerKey=generate_key(BikerId, Round, "ready"),
+    kvstore:get(BikerKey).
+
+set_notification(BikerId, Round) ->
+    BikerKey=generate_key(BikerId, Round, "ready"),
+    kvstore:put(BikerKey, Round).
 
 %%%===================================================================
 %%% Internal Functions

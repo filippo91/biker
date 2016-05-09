@@ -1,7 +1,8 @@
 -ifndef(PRINT).
 -define(PRINT(Var), io:format("DEBUG: ~p:~p - ~p~n~n ~p~n~n", [?MODULE, ?LINE, ??Var, Var])).
 -endif.
--define(ROUND_DURATION, 10000).
--define(N_ROUND, 1).
--define(N_BIKER, 0).
+-define(ROUND_DURATION, 20000).
+-define(N_ROUND, 2).
+-define(N_BIKER, 2).
 -define(DISTANCE, 100.0).
+-define(DEFAULT_SPEED, 1.0).
