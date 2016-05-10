@@ -7,15 +7,30 @@
          start_race/1,
          put_info/2,
          info_race/2,
-         ping/0
+         ping/0,
+         update_status/2,
+         validate_speed/2
         ]).
 
 %% Public API
-start_race(BikerId) ->  
+start_race(BikerId) -> 
+    MasterId = 0,
     Round = 0,
+    if BikerId == MasterId ->
+        set_initial_state(0, Round),
+        notify_master_decision(MasterId, Round),
+        master_node(MasterId, Round);
+        true -> 
+        round_node(MasterId, BikerId, Round)
+    end.   
+
+set_initial_state(?N_BIKER, Round) ->
+    Round, ?N_BIKER;
+
+set_initial_state(BikerId, Round) ->
     InitialStatus = status_repository:create_status(BikerId),
     biker_repository:save_status(BikerId, Round, InitialStatus),
-    round_node(BikerId, 0).
+    set_initial_state(BikerId+1, Round).
 
 put_info(BikerId, Round) ->
     InitialStatus = status_repository:create_status(BikerId),
@@ -23,7 +38,7 @@ put_info(BikerId, Round) ->
 
 info_race(BikerId, Round) ->
     {ok,InitialStatus} = biker_repository:get_status(BikerId, Round),
-    io:format("Distance: ~f~nEnergy: ~f~nPosition: ~f~nSpeed: ~f~n",  [InitialStatus#status.distance, InitialStatus#status.energy, InitialStatus#status.position, InitialStatus#status.speed]),
+    io:format("Id: ~p~nDistance: ~f~nEnergy: ~f~nPosition: ~f~nSpeed: ~f~n",  [InitialStatus#status.id, InitialStatus#status.distance, InitialStatus#status.energy, InitialStatus#status.position, InitialStatus#status.speed]),
     {ok, Decision} = biker_repository:get_decision(BikerId, Round),
     io:format("Decision:~n Strategy: ~s~nSpeed~f~n",  [Decision#decision.strategy, Decision#decision.speed]).
 
@@ -35,35 +50,83 @@ set_decision(Input, BikerId, Round) ->
 %    {ok, X} = biker_repository:get_decision(BikerId, Round),
 %    io:format("Strategy: ~p~nSpeed: ~p~nPlayer: ~p~n", [X#decision.strategy, X#decision.speed, X#decision.player]).
 
-round_node(BikerId, ?N_ROUND) ->
-    BikerId, ?N_ROUND;
+master_node(MasterId, ?N_ROUND) ->
+    KVEntries = [biker_repository:get_status(BikerId, ?N_ROUND) || BikerId <- lists:seq(0, ?N_BIKER-1)],
+    OldView = [ Status || {_,Status}  <- KVEntries ],
+    SortedOldView = lists:sort(
+        fun(A, B) -> if A#status.position =< B#status.position, A#status.id > B#status.id -> true;
+                    true -> false
+                    end
+        end, 
+        OldView),
+    show_results(SortedOldView, ?N_ROUND),
+    MasterId, ?N_ROUND;
 
-round_node(BikerId, Round) ->
+master_node(MasterId, Round) ->
+    KVEntries = [biker_repository:get_status(BikerId, Round) || BikerId <- lists:seq(0, ?N_BIKER-1)],
+    OldView = [ Status || {_,Status}  <- KVEntries ],
+    SortedOldView = lists:sort(
+        fun(A, B) -> if A#status.position =< B#status.position, A#status.id > B#status.id -> true;
+                    true -> false
+                    end
+        end, 
+        OldView),
+    show_results(SortedOldView, Round),
+    StillEnergy = check_if_energy(MasterId, Round),
+    if StillEnergy == true -> 
+            Input = wait_cmd(?PROMPT_TIMEOUT),
+            if Input == timeout -> Decision = {timeout, 0, ?N_BIKER};
+                true -> Decision = Input    
+            end;
+        true -> Decision = {game_over, 0, ?N_BIKER}
+    end,
+    set_decision(Decision, MasterId, Round),
+    notify_decision(MasterId, Round),
+    wait_for_decisions(0,Round),
+    %set_initial_state(0, Round+1),
+    UpdatedStatus = [ update_status(Biker#status.id, Round) ||  Biker <- SortedOldView],
+    [biker_repository:save_status(NewStatus#status.id, Round+1, NewStatus) || NewStatus <- UpdatedStatus],
+    notify_master_decision(MasterId, Round),
+    master_node(MasterId, Round+1).
+
+notify_master_decision(MasterId, Round) ->
+    biker_repository:set_master_notification(MasterId, Round).
+
+round_node(MasterId, BikerId, ?N_ROUND) ->
+    MasterId, BikerId, ?N_ROUND;
+
+round_node(MasterId, BikerId, Round) ->
+    wait_for_master(MasterId, Round),
+    KVEntries = [biker_repository:get_status(BikerIdIterator, Round) || BikerIdIterator <- lists:seq(0, ?N_BIKER-1)],
+    UpdatedView = [ Status || {_,Status}  <- KVEntries ],
+    show_results(UpdatedView, Round),
     StillEnergy = check_if_energy(BikerId, Round),
     if StillEnergy == true -> 
             Input = wait_cmd(?PROMPT_TIMEOUT),
-            if Input == timeout -> Decision = {timeout, ?DEFAULT_SPEED, ?N_BIKER};
-                true -> Decision = Input
+            if Input == timeout -> Decision = {timeout, 0, ?N_BIKER};
+                true -> Decision = Input    
             end;
-        true -> 
-            Decision = {game_over, ?DEFAULT_SPEED, ?N_BIKER}
+        true -> Decision = {game_over, 0, ?N_BIKER}
     end,
     set_decision(Decision, BikerId, Round),
     notify_decision(BikerId, Round),
-    wait_for_decisions(0,Round),
-    NewStatus = update_status(BikerId, Round),
-    biker_repository:save_status(BikerId, Round+1, NewStatus),
-    UpdatedView = [update_status(Biker, Round) || Biker <- lists:seq(0, ?N_BIKER-1)],
-    show_results(UpdatedView, Round+1),
-    round_node(BikerId, Round+1).
+    round_node(MasterId, BikerId, Round+1).
 
 show_results(UpdatedView, Round) ->
     SortedUpdatedView = lists:sort(fun(A, B) -> A#status.position > B#status.position end, UpdatedView),
-    io:format("State of the race at Round ~p~n",[Round]),
+    io:format("~n----------------------------------~n"),
+    io:format("| State of the race at Round ~p/~p |~n",[Round, ?N_ROUND]),
+    io:format("----------------------------------~n"),
+%    ?PRINT(UpdatedView),
+%    [ print_state(Biker)  || Biker <- UpdatedView].
     [ print_state(Biker)  || Biker <- SortedUpdatedView].
 
 print_state(Biker) ->
-    io:format("BikerId: ~B~nDistance: ~f~nEnergy: ~f~nPosition: ~f~nSpeed: ~f~n",  [Biker#status.id, Biker#status.distance, Biker#status.energy, Biker#status.position, Biker#status.speed]).
+%    ?PRINT(Biker),
+    io:format("~n--------------~n"),
+    io:format("| BikerId: ~B |~n", [Biker#status.id]),
+    io:format("--------------~n"),
+    io:format("Distance: ~f~nEnergy: ~f~nPosition: ~f~nSpeed: ~f~n", [Biker#status.distance, Biker#status.energy, Biker#status.position, Biker#status.speed]).
 
 notify_decision(BikerId, Round) ->
     io:format("notify decision ~p~n", [Round]),
@@ -90,13 +153,22 @@ wait_for_decisions(BikerId, Round) ->
     end,
     wait_for_decisions(BikerId+1, Round).
 
+wait_for_master(MasterId, Round) ->
+    {OperationState, Not} = biker_repository:get_master_notification(MasterId, Round),
+    if OperationState == ok, Not == not_found ->
+            timer:sleep(10000),
+            wait_for_master(MasterId, Round);
+        true ->
+            great
+    end.
+
 update_status(BikerId, Round) -> 
     {ok,Status} = biker_repository:get_status(BikerId, Round),
     {ok,Decision} = biker_repository:get_decision(BikerId, Round),
     case Decision#decision.strategy of
         myself -> 
             %io:format("updating state...~n"),
-            Speed = Decision#decision.speed,
+            Speed = validate_speed(Status#status.energy, Decision#decision.speed),
             Position = Status#status.position + Speed,
             Energy = Status#status.energy - 0.12 * math:pow(Speed, 2),
             NewStatus = status_repository:create_status(BikerId, ?DISTANCE, Energy, Position, Speed),
@@ -105,15 +177,21 @@ update_status(BikerId, Round) ->
         behind ->
             PlayerId = Decision#decision.player,
             {ok,PlayerDecision} = biker_repository:get_decision(PlayerId, Round),
+            % if a <- b && b <- a, the lower id wins
             if  PlayerDecision#decision.strategy == behind, 
                 PlayerDecision#decision.player == BikerId,
                 BikerId > PlayerId ->
-                    Speed = ?DEFAULT_SPEED;
+                    % lose: try to mantain the previous speed
+                    Speed = validate_speed(Status#status.energy, Status#status.speed),
+                    Position = Status#status.position + Speed,
+                    Energy = Status#status.energy - 0.12 * math:pow(Speed, 2);
                 true ->
-                    Speed = PlayerDecision#decision.speed
+                    % win: get the speed of the player I chose
+                    PlayerStatus = biker_repository:get_status(PlayerId, Round+1),
+                    Speed = validate_speed(Status#status.energy, PlayerStatus#status.speed),
+                    Position = PlayerStatus#status.position + Speed,
+                    Energy = Status#status.energy - 0.06 * math:pow(Speed, 2)
             end,
-            Position = Status#status.position + Speed,
-            Energy = Status#status.energy - 0.06 * math:pow(Speed, 2),
             
             NewStatus = status_repository:create_status(BikerId, ?DISTANCE, Energy, Position, Speed),
                     NewStatus;
@@ -125,8 +203,7 @@ update_status(BikerId, Round) ->
             NewStatus = status_repository:create_status(BikerId, ?DISTANCE, Energy, Position, Speed),
             NewStatus;
         timeout -> 
-            MaxSpeed = math:sqrt(Status#status.energy / 0.12),
-            Speed = lists:min([Status#status.speed, MaxSpeed]),
+            Speed = validate_speed(Status#status.energy, Status#status.speed),
             Energy = Status#status.energy - 0.12 * math:pow(Speed, 2),
             Position = Status#status.position + Speed,
             NewStatus = status_repository:create_status(BikerId, ?DISTANCE, Energy, Position, Speed),
@@ -136,10 +213,17 @@ update_status(BikerId, Round) ->
             NewStatus
     end.
 
+validate_speed(Energy, Speed) ->
+    MaxSpeed = math:sqrt(Energy / 0.12),
+%    ?PRINT(MaxSpeed),
+    MIN = lists:min([Speed, MaxSpeed]),
+%    ?PRINT(MIN),
+    MIN.
+
 check_if_energy(BikerId, Round) ->
-    io:format("Your Status (Round ~p, BikerId ~p):~n", [Round, BikerId]),
+%    io:format("Your Status (Round ~p, BikerId ~p):~n", [Round, BikerId]),
     {ok, Status} = biker_repository:get_status(BikerId, Round),
-    io:format("Distance: ~f~nEnergy: ~f~nPosition: ~f~nSpeed: ~f~n",  [Status#status.distance, Status#status.energy, Status#status.position, Status#status.speed]),
+%    io:format("Distance: ~f~nEnergy: ~f~nPosition: ~f~nSpeed: ~f~n",  [Status#status.distance, Status#status.energy, Status#status.position, Status#status.speed]),
     if Status#status.energy > 0 -> true;
         true -> false
     end.
@@ -154,9 +238,9 @@ user_prompt() ->
             Player = ?N_BIKER;
         behind ->
             {ok, Player} = io:read("Who?> "),
-            Speed = ?DEFAULT_SPEED;
+            Speed = behind;
         boost ->
-            Speed = ?DEFAULT_SPEED,
+            Speed = 0,
             Player = ?N_BIKER
     end,
     {Strategy, Speed, Player}.

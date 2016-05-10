@@ -2,7 +2,6 @@
 -define(PRINT(Var), io:format("DEBUG: ~p:~p - ~p~n~n ~p~n~n", [?MODULE, ?LINE, ??Var, Var])).
 -endif.
 -define(N_ROUND, 2).
--define(N_BIKER, 2).
+-define(N_BIKER, 1).
 -define(DISTANCE, 100.0).
--define(DEFAULT_SPEED, 1.0).
 -define(PROMPT_TIMEOUT, 20000).
