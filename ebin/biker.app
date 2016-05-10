@@ -11,4 +11,4 @@
                         decision_repository,kvstore,kvstore_dht_vnode,
                         kvstore_get_fsm,kvstore_get_fsm_sup,
                         kvstore_modify_fsm,kvstore_modify_fsm_sup,
-                        kvstore_vnode,msg_repository,status_repository]}]}.
+                        kvstore_vnode,status_repository]}]}.
