@@ -86,13 +86,17 @@ master_node(MasterId, Round) ->
     %set_initial_state(0, Round+1),
     UpdatedStatus = [ update_status(Biker#status.id, Round) ||  Biker <- SortedOldView],
     [biker_repository:save_status(NewStatus#status.id, Round+1, NewStatus) || NewStatus <- UpdatedStatus],
-    notify_master_decision(MasterId, Round),
+    notify_master_decision(MasterId, Round+1),
     master_node(MasterId, Round+1).
 
 notify_master_decision(MasterId, Round) ->
     biker_repository:set_master_notification(MasterId, Round).
 
 round_node(MasterId, BikerId, ?N_ROUND) ->
+    wait_for_master(MasterId, ?N_ROUND),
+    KVEntries = [biker_repository:get_status(BikerIdIterator, ?N_ROUND) || BikerIdIterator <- lists:seq(0, ?N_BIKER-1)],
+    UpdatedView = [ Status || {_,Status}  <- KVEntries ],
+    show_results(UpdatedView, ?N_ROUND),
     MasterId, BikerId, ?N_ROUND;
 
 round_node(MasterId, BikerId, Round) ->
