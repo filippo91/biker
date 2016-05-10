@@ -4,4 +4,4 @@
 -define(N_ROUND, 2).
 -define(N_BIKER, 2).
 -define(DISTANCE, 100.0).
--define(PROMPT_TIMEOUT, 20000).
+-define(PROMPT_TIMEOUT, 60000).
