@@ -1,28 +1,28 @@
 -module(game_rules).
 -compile(export_all).
 -include("biker.hrl").
--include("msgy_tob.hrl").
+-include("msgy.hrl").
 
 get_user_decision(BikerId, Round, NumOfBikers) ->
     StillEnergy = check_if_energy(BikerId, Round),
     if StillEnergy == true ->
             Input = cli:wait_cmd(?PROMPT_TIMEOUT),
             if Input == timeout -> 
-                    {_,_,Micro} = os:timestamp(),
-                    Decision = {timeout, 0, NumOfBikers, Micro};
+                    Decision = {timeout, 0, NumOfBikers};
                 Input == behind ->
                     % set speed to solve conflicts
                     Status = biker_repository:get_status(BikerId, Round),
-                    {Strategy, _, Player, TS} = Input,
+                    {Strategy, _, Player} = Input,
                     Speed = Status#status.speed,
-                    Decision = {Strategy, Speed, Player, TS};
+                    Decision = {Strategy, Speed, Player};
                 true -> Decision = Input
             end;
         true -> 
-            {_,_,Micro} = os:timestamp(),
-            Decision = {game_over, 0, NumOfBikers, Micro}
+            Decision = {game_over, 0, NumOfBikers}
     end,
-	Decision.
+	{FStrategy, FSpeed, FPlayer} = Decision,
+    {_,_,Micro} = os:timestamp(),
+    {FStrategy, FSpeed, FPlayer, Micro}.
 
 validate_speed(Energy, Speed) ->
     MaxSpeed = math:sqrt(Energy / 0.12),
@@ -40,6 +40,7 @@ check_if_energy(BikerId, Round) ->
     end.
 
 play(Decision, Round) ->
+    ?PRINT(Decision),
     {ok,Biker} = biker_repository:get_status(Decision#decision.bikerId, Round),
     case Decision#decision.strategy of
         myself ->

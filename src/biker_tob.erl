@@ -1,7 +1,7 @@
 -module(biker_tob).
 -include("biker.hrl").
 -include_lib("riak_core/include/riak_core_vnode.hrl").
--include("msgy_tob.hrl").
+-include("msgy.hrl").
 
 -export([
          start_race/2,

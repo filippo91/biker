@@ -1,6 +1,6 @@
 -module(tob).
 -compile(export_all).
--include("msgy_tob.hrl").
+-include("msgy.hrl").
 -include("biker.hrl").
 
 broadcast_decision(UpdatedStatus, Round) ->

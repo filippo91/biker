@@ -52,8 +52,9 @@ user_prompt() ->
             Speed = 0,
             Player = ?N_BIKER
     end,
-    {_,_,Micro} = os:timestamp(),
-    {Strategy, Speed, Player, Micro}.
+%    {_,_,Micro} = os:timestamp(),
+%    {Strategy, Speed, Player, Micro}.
+    {Strategy, Speed, Player}.
 
 % Implements timed input.
 % It shuts down the user prompt if the time is over.
