@@ -7,8 +7,9 @@
               {env,[]},
               {modules,[biker,biker_app,biker_console,
                         biker_node_event_handler,biker_repository,
-                        biker_ring_event_handler,biker_sup,biker_vnode,
-                        decision_repository,kvstore,kvstore_dht_vnode,
-                        kvstore_get_fsm,kvstore_get_fsm_sup,
+                        biker_ring_event_handler,biker_sup,biker_tob,
+                        biker_vnode,cli,decision_repository,
+                        decision_tob_repository,game_rules,kvstore,
+                        kvstore_dht_vnode,kvstore_get_fsm,kvstore_get_fsm_sup,
                         kvstore_modify_fsm,kvstore_modify_fsm_sup,
-                        kvstore_vnode,status_repository]}]}.
+                        kvstore_vnode,status_repository,tob]}]}.
