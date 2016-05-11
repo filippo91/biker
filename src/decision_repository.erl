@@ -1,6 +1,6 @@
--module(decision_tob_repository).
+-module(decision_repository).
 -export([create_decision/0, create_decision/5]).
--include("msgy_tob.hrl").
+-include("msgy.hrl").
 
 create_decision() ->
     #decision{strategy=myself,
