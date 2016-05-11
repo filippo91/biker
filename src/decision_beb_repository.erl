@@ -1,6 +1,6 @@
 -module(decision_repository).
 -export([create_decision/0, create_decision/3]).
--include("msgy.hrl").
+-include("msgy_beb.hrl").
 
 create_decision() ->
     #decision{strategy=myself,
@@ -11,3 +11,4 @@ create_decision(Strategy, Player, Speed) ->
     #decision{strategy=Strategy,
              player=Player,
              speed=Speed}.
+
