@@ -5,11 +5,12 @@
               {applications,[kernel,stdlib,riak_core]},
               {mod,{biker_app,[]}},
               {env,[]},
-              {modules,[biker,biker_app,biker_console,
+              {modules,[beb,biker,biker_app,biker_beb,biker_console,
                         biker_node_event_handler,biker_repository,
                         biker_ring_event_handler,biker_sup,biker_tob,
-                        biker_vnode,cli,decision_repository,
-                        decision_tob_repository,game_rules,kvstore,
-                        kvstore_dht_vnode,kvstore_get_fsm,kvstore_get_fsm_sup,
-                        kvstore_modify_fsm,kvstore_modify_fsm_sup,
-                        kvstore_vnode,status_repository,tob]}]}.
+                        biker_vnode,cli,decision_beb_repository,
+                        decision_repository,decision_tob_repository,
+                        game_rules,kvstore,kvstore_dht_vnode,kvstore_get_fsm,
+                        kvstore_get_fsm_sup,kvstore_modify_fsm,
+                        kvstore_modify_fsm_sup,kvstore_vnode,
+                        status_repository,tob]}]}.
