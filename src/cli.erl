@@ -1,6 +1,6 @@
 -module(cli).
 -compile(export_all).
--include("msgy_tob.hrl").
+-include("msgy.hrl").
 -include("biker.hrl").
 
 show_previous_round(Round, NumOfBikers) ->
@@ -21,9 +21,9 @@ show_previous_round(Round, NumOfBikers) ->
 
 show_results(UpdatedView, Round) ->
     SortedUpdatedView = lists:sort(fun(A, B) -> A#status.position > B#status.position end, UpdatedView),
-    io:format("~n----------------------------------~n"),
-    io:format("| State of the race at Round ~p/~p |~n",[Round, ?N_ROUND]),
-    io:format("----------------------------------~n"),
+    io:format("~n--------------------------------~n"),
+    io:format("| State of the race at Round ~p |~n",[Round]),
+    io:format("--------------------------------~n"),
     ?PRINT(UpdatedView),
 %    [ print_state(Biker)  || Biker <- UpdatedView].
     [ print_state(Biker)  || Biker <- SortedUpdatedView].
@@ -33,7 +33,7 @@ print_state(Biker) ->
     io:format("~n--------------~n"),
     io:format("| BikerId: ~B |~n", [Biker#status.id]),
     io:format("--------------~n"),
-    io:format("Distance: ~f~nEnergy: ~f~nPosition: ~f~nSpeed: ~f~n", [Biker#status.distance, Biker#status.energy, Biker#status.position, Biker#status.speed]).
+    io:format("Rank: ~B~nEnergy: ~f~nPosition: ~f~nSpeed: ~f~n", [Biker#status.rank, Biker#status.energy, Biker#status.position, Biker#status.speed]).
 
 % Get input from the user according to the business rules.
 % Add a timestamp to record conflicts.
@@ -44,13 +44,13 @@ user_prompt() ->
         myself ->
             {ok, Input} = io:read("Speed>"),
             Speed = float(Input),
-            Player = ?N_BIKER;
+            Player = 0;
         behind ->
             {ok, Player} = io:read("Who?> "),
             Speed = behind;
         boost ->
             Speed = 0,
-            Player = ?N_BIKER
+            Player = 0 
     end,
 %    {_,_,Micro} = os:timestamp(),
 %    {Strategy, Speed, Player, Micro}.

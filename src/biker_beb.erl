@@ -14,19 +14,18 @@ start_race(BikerId, NumOfBikers) ->
     create_initial_status(BikerId, Round),
     node(BikerId, Round, NumOfBikers).
 
-node(BikerId, ?N_ROUND, NumOfBikers) ->
-    beb:receive_decisions(BikerId, ?N_ROUND, NumOfBikers, []),
-    cli:show_previous_round(?N_ROUND, NumOfBikers),
-    BikerId, NumOfBikers;
-
 node(BikerId, Round, NumOfBikers) ->
     beb:receive_decisions(BikerId, Round, NumOfBikers, []),
     cli:show_previous_round(Round, NumOfBikers),
-    Input = game_rules:get_user_decision(BikerId, Round, NumOfBikers),
-    Decision = create_decision(Input, BikerId),
-    NewStatus = game_rules:play(Decision, Round),
-    beb:broadcast_decision(NewStatus, Round+1),
-    node(BikerId, Round+1, NumOfBikers).
+    TheEnd = game_rules:check_if_end(Round, NumOfBikers),
+    if TheEnd == false -> 
+        Input = game_rules:get_user_decision(BikerId, Round, NumOfBikers),
+        Decision = create_decision(Input, BikerId),
+        NewStatus = game_rules:play(Decision, Round),
+        beb:broadcast_decision(NewStatus, Round+1),
+        node(BikerId, Round+1, NumOfBikers);
+        true -> theEnd
+    end.
 
 create_initial_status(BikerId, Round) ->
     InitialStatus = status_repository:create_status(BikerId),

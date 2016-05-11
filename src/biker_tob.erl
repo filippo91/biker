@@ -20,34 +20,33 @@ start_race(BikerId, NumOfBikers) ->
         ordinary_node(MasterId, BikerId, Round, NumOfBikers)
     end.   
 
-master_node(MasterId, ?N_ROUND, NumOfBikers) ->
-    cli:show_previous_round(?N_ROUND, NumOfBikers),
-    MasterId, NumOfBikers;
-
 master_node(MasterId, Round, NumOfBikers) ->
     cli:show_previous_round(Round, NumOfBikers),
-    Input = game_rules:get_user_decision(MasterId, Round, NumOfBikers),
-    set_decision(Input, MasterId, Round),
-    Decisions = tob:receive_decisions(0, Round, NumOfBikers, []),
-    ?PRINT(Decisions),
-    SortedDecisions = tob:decide_order(Decisions, Round),
-    ?PRINT(SortedDecisions),
-    UpdatedStatus = [ game_rules:play(Decision, Round) ||  Decision <- SortedDecisions],
-    tob:broadcast_decision(UpdatedStatus, Round+1),
-    tob:new_round(MasterId, Round+1),
-    master_node(MasterId, Round+1, NumOfBikers).
-
-ordinary_node(MasterId, BikerId, ?N_ROUND, NumOfBikers) ->
-    wait_for_master(MasterId, ?N_ROUND),
-    cli:show_previous_round(?N_ROUND, NumOfBikers),
-    MasterId, BikerId, NumOfBikers;
+    TheEnd = game_rules:check_if_end(Round, NumOfBikers),
+    if TheEnd == false -> 
+        Input = game_rules:get_user_decision(MasterId, Round, NumOfBikers),
+        set_decision(Input, MasterId, Round),
+        Decisions = tob:receive_decisions(0, Round, NumOfBikers, []),
+        ?PRINT(Decisions),
+        SortedDecisions = tob:decide_order(Decisions, Round),
+        ?PRINT(SortedDecisions),
+        UpdatedStatus = [ game_rules:play(Decision, Round) ||  Decision <- SortedDecisions],
+        tob:broadcast_decision(UpdatedStatus, Round+1),
+        tob:new_round(MasterId, Round+1),
+        master_node(MasterId, Round+1, NumOfBikers);
+        true -> theEnd
+     end.
 
 ordinary_node(MasterId, BikerId, Round, NumOfBikers) ->
     wait_for_master(MasterId, Round),
     cli:show_previous_round(Round, NumOfBikers),
-    Input = game_rules:get_user_decision(BikerId, Round, NumOfBikers),
-    set_decision(Input, BikerId, Round),
-    ordinary_node(MasterId, BikerId, Round+1, NumOfBikers).
+    TheEnd = game_rules:check_if_end(Round, NumOfBikers),
+    if TheEnd == false ->
+        Input = game_rules:get_user_decision(BikerId, Round, NumOfBikers),
+        set_decision(Input, BikerId, Round),
+        ordinary_node(MasterId, BikerId, Round+1, NumOfBikers);
+        true -> theEnd
+    end.
 
 set_decision(Input, BikerId, Round) -> 
     {Strategy, Speed, Player, TS} = Input,

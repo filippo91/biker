@@ -4,14 +4,14 @@
 
 create_status(BikerId) ->
     #status{id=BikerId,
-            distance=100.0,
+            rank=0,
              energy=112.0,
              position=0.0,
              speed=0.0}.
 
-create_status(BikerId, Distance, Energy, Position, Speed) ->
+create_status(BikerId, Rank, Energy, Position, Speed) ->
     #status{id=BikerId,
-            distance=Distance,
+            rank=Rank,
              energy=Energy,
              position=Position,
              speed=Speed}.

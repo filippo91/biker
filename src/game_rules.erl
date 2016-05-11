@@ -4,8 +4,8 @@
 -include("msgy.hrl").
 
 get_user_decision(BikerId, Round, NumOfBikers) ->
-    StillEnergy = check_if_energy(BikerId, Round),
-    if StillEnergy == true ->
+    CanPlay = check_if_can_play(BikerId, Round),
+    if CanPlay == true ->
             Input = cli:wait_cmd(?PROMPT_TIMEOUT),
             if Input == timeout -> 
                     Decision = {timeout, 0, NumOfBikers};
@@ -31,13 +31,17 @@ validate_speed(Energy, Speed) ->
 %    ?PRINT(MIN),
     MIN.
 
-check_if_energy(BikerId, Round) ->
+check_if_can_play(BikerId, Round) ->
 %    io:format("Your Status (Round ~p, BikerId ~p):~n", [Round, BikerId]),
     {ok, Status} = biker_repository:get_status(BikerId, Round),
 %    io:format("Distance: ~f~nEnergy: ~f~nPosition: ~f~nSpeed: ~f~n",  [Status#status.distance, Status#status.energy, Status#status.position, Status#status.speed]),
-    if Status#status.energy > 0 -> true;
+    if Status#status.energy > 0, Status#status.position < ?DISTANCE -> true;
         true -> false
     end.
+
+check_if_end(Round, NumOfBikers) ->
+    Set = [ BikerId || BikerId <- lists:seq(0, NumOfBikers-1), check_if_can_play(BikerId, Round)],
+    Set == [].
 
 play(Decision, Round) ->
     ?PRINT(Decision),
@@ -46,31 +50,31 @@ play(Decision, Round) ->
         myself ->
             Speed = validate_speed(Biker#status.energy, Decision#decision.speed),
             Position = Biker#status.position + Speed,
-            Energy = Biker#status.energy - 0.12 * math:pow(Speed, 2),
-            NewBiker = status_repository:create_status(Biker#status.id, ?DISTANCE, Energy, Position, Speed),
-            NewBiker;
+            Energy = Biker#status.energy - 0.12 * math:pow(Speed, 2);
         behind ->
             PlayerBehindId = Decision#decision.player,
             {ok,PlayerBehindDecision} = biker_repository:get_decision(PlayerBehindId, Round),
             {ok,PlayerBehind} = biker_repository:get_status(PlayerBehindId, Round),
             Speed = validate_speed(Biker#status.energy, PlayerBehindDecision#decision.speed),
             Position = PlayerBehind#status.position + Speed,
-            Energy = Biker#status.energy - 0.06 * math:pow(Speed, 2),
-            NewBiker = status_repository:create_status(Biker#status.id, ?DISTANCE, Energy, Position, Speed),
-            NewBiker;
+            Energy = Biker#status.energy - 0.06 * math:pow(Speed, 2);
         boost ->
             Speed = 3.87 * math:sqrt(Biker#status.energy),
             Position = Biker#status.position + Speed,
-            Energy = 0.0,
-            NewBiker = status_repository:create_status(Biker#status.id, ?DISTANCE, Energy, Position, Speed), 
-            NewBiker;
+            Energy = 0.0;
         timeout ->  
             Speed = validate_speed(Biker#status.energy, Biker#status.speed),
             Energy = Biker#status.energy - 0.12 * math:pow(Speed, 2), 
-            Position = Biker#status.position + Speed,
-            NewBiker = status_repository:create_status(Biker#status.id, ?DISTANCE, Energy, Position, Speed), 
-            NewBiker;
-        game_over ->
-            NewBiker = Biker,
-            NewBiker
-    end.
+            Position = Biker#status.position + Speed
+    end,
+    
+    if Decision#decision.strategy == game_over -> NewBiker = Biker;
+        true -> 
+        CanPlay = check_if_can_play(Biker#status.id, Round),
+        if CanPlay == false -> Stop = Round;
+            true -> Stop = 0
+        end,
+        NewBiker = status_repository:create_status(Biker#status.id, Stop, Energy, Position, Speed)
+    end,
+
+    NewBiker.
