@@ -10,31 +10,74 @@
 
 %% Public API
 start_race(BikerId, NumOfBikers) -> 
+    cli:print_logo(),
     Round = 0,
-    create_initial_status(BikerId, Round),
+    create_initial_instance(BikerId, Round, NumOfBikers),
     node(BikerId, Round, NumOfBikers).
 
 node(BikerId, Round, NumOfBikers) ->
-    beb:receive_decisions(BikerId, Round, NumOfBikers, []),
-    cli:show_previous_round(Round, NumOfBikers),
     TheEnd = game_rules:check_if_end(Round, NumOfBikers),
     if TheEnd == false -> 
+        cli:show_ranking(Round, NumOfBikers),
+        cli:show_biker_info(BikerId, Round),
         Input = game_rules:get_user_decision(BikerId, Round, NumOfBikers),
         Decision = create_decision(Input, BikerId),
-        NewStatus = game_rules:play(Decision, Round),
-        beb:broadcast_decision(NewStatus, Round+1),
+        beb:broadcast_decision(Decision, Round),
+        Decisions = beb:receive_decisions(0, Round, NumOfBikers, []), 
+        ?PRINT(Decisions),
+		OrderedDecisions = decide_order(Decisions, Round),
+        ?PRINT(OrderedDecisions),
+        UpdatedStatus = [ game_rules:play(Dec, Round) || Dec <- OrderedDecisions],
+        ?PRINT(UpdatedStatus),
+        [biker_repository:save_status(NewStatus#status.id, Round+1, NewStatus) || NewStatus <- UpdatedStatus],
         node(BikerId, Round+1, NumOfBikers);
-        true -> theEnd
+        true -> 
+            cli:show_ranking(Round, NumOfBikers),
+            cli:show_winner(Round, NumOfBikers)
     end.
 
-create_initial_status(BikerId, Round) ->
-    InitialStatus = status_repository:create_status(BikerId),
-    beb:broadcast_decision(InitialStatus, Round).
+create_initial_instance(BikerId, Round, NumOfBikers) ->
+    Instance = [status_repository:create_status(CurrBikerId) || CurrBikerId <- lists:seq(0, NumOfBikers-1)],
+    [biker_repository:save_status(BikerId, Round, Status) || Status <- Instance].
 
 create_decision(Input, BikerId) -> 
-    {Strategy, Speed, Player, TS} = Input,
-    Decision = decision_repository:create_decision(BikerId, Strategy, Player, Speed, TS),
+    {Strategy, Speed, Player} = Input,
+    Decision = decision_repository:create_decision(BikerId, Strategy, Player, Speed, 0),
     Decision.
+
+decide_order(Decisions, Round) ->
+    SortedDecisions = sort(Decisions),
+    Solved = [solve_conflicts(Decision, Round) || Decision <- SortedDecisions],
+    Solved.
+
+sort(Decisions) ->
+    lists:sort(
+        fun(A, B) ->  
+            if A#decision.ts =< B#decision.ts -> true;
+                true -> false
+            end
+         end,
+         Decisions).
+
+solve_conflicts(Decision, Round) ->
+    ?PRINT(Decision),
+    BikerId = Decision#decision.bikerId,
+    Biker = biker_repository:get_status(BikerId, Round),
+    PlayerBehindId = Decision#decision.player,
+    {ok,PlayerBehindDecision} = biker_repository:get_decision(PlayerBehindId, Round), 
+    if  PlayerBehindDecision#decision.strategy == behind,
+        PlayerBehindDecision#decision.player == Biker#status.id,
+        Decision#decision.ts > PlayerBehindDecision#decision.ts ->
+        % there is a conflict
+        % lose: try to mantain the previous speed
+            Speed = game_rules:validate_speed(Biker#status.energy, Biker#status.speed),
+            NewDecision = decision_tob_repository:create_decision(BikerId, myself, 0, Speed, Decision#decision.ts),
+            NewDecision;
+        true ->
+            % win: keep the decision
+            Decision
+    end.
+
 
 %% @doc Pings a random vnode to make sure communication is functional
 ping() ->
@@ -42,3 +85,5 @@ ping() ->
     PrefList = riak_core_apl:get_primary_apl(DocIdx, 1, biker),
     [{IndexNode, _Type}] = PrefList,
     riak_core_vnode_master:sync_spawn_command(IndexNode, ping, biker_vnode_master).
+
+

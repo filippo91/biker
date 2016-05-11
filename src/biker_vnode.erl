@@ -30,8 +30,8 @@ init([Partition]) ->
 handle_command(ping, _Sender, State) ->
     {reply, {pong, State#state.partition}, State};
 handle_command(Message, _Sender, State) ->
-    ?PRINT({unhandled_command, Message}),
-    {noreply, State}.
+%    ?PRINT({unhandled_command, Message}),
+    {noreply, State, Message}.
 
 handle_handoff_command(_Message, _Sender, State) ->
     {noreply, State}.

@@ -11,15 +11,21 @@ receive_decisions(NumOfBikers, Round, NumOfBikers, Decisions) ->
     Decisions;
 
 receive_decisions(BikerId, Round, NumOfBikers, Decisions) ->
-    {OperationState, Decision} = biker_repository:get_decision(BikerId, Round),
-    io:format("wait for ~B Round ~B, operation ~p, ~p~n", [BikerId, Round, OperationState, Decision]),
-    if OperationState == ok, Decision == not_found ->
-            timer:sleep(10000),
+    {OperationState, RDecision} = biker_repository:get_decision(BikerId, Round),
+%    io:format("wait for ~B Round ~B, operation ~p, ~p~n", [BikerId, Round, OperationState, Decision]),
+    if OperationState == ok, RDecision == not_found ->
+            timer:sleep(1000),
             receive_decisions(BikerId, Round, NumOfBikers, Decisions);
         true ->
+            Decision = add_timestamp(RDecision),
             NewSet = Decisions ++ [Decision],
             receive_decisions(BikerId+1, Round, NumOfBikers, NewSet)
     end.
+
+add_timestamp(Dec) ->
+    Current = calendar:local_time(), 
+    TS = calendar:datetime_to_gregorian_seconds(Current),
+	decision_repository:create_decision(Dec#decision.bikerId, Dec#decision.strategy, Dec#decision.player, Dec#decision.speed, TS).
 
 new_round(MasterId, Round) ->
     biker_repository:set_master_notification(MasterId, Round).  

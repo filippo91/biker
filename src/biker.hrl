@@ -1,5 +1,13 @@
+%-define(DEBUG,1).
+-ifdef(DEBUG).
 -ifndef(PRINT).
 -define(PRINT(Var), io:format("DEBUG: ~p:~p - ~p~n~n ~p~n~n", [?MODULE, ?LINE, ??Var, Var])).
 -endif.
--define(DISTANCE, 100.0).
+-else.
+-define(PRINT(Var), true).
+-endif.
+-define(DISTANCE, 10.0).
 -define(PROMPT_TIMEOUT, 60000).
+-define(B_MYSELF, 0.12).
+-define(B_BEHIND, 0.06).
+-define(BOOST, 3.87).

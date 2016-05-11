@@ -10,6 +10,7 @@
 
 %% Public API
 start_race(BikerId, NumOfBikers) -> 
+    cli:print_logo(),
     MasterId = 0,
     Round = 0,
     if BikerId == MasterId ->
@@ -21,11 +22,9 @@ start_race(BikerId, NumOfBikers) ->
     end.   
 
 master_node(MasterId, Round, NumOfBikers) ->
-    cli:show_previous_round(Round, NumOfBikers),
     TheEnd = game_rules:check_if_end(Round, NumOfBikers),
-    if TheEnd == false -> 
-        Input = game_rules:get_user_decision(MasterId, Round, NumOfBikers),
-        set_decision(Input, MasterId, Round),
+    if TheEnd == false ->
+        play_game(MasterId,Round, NumOfBikers),
         Decisions = tob:receive_decisions(0, Round, NumOfBikers, []),
         ?PRINT(Decisions),
         SortedDecisions = tob:decide_order(Decisions, Round),
@@ -34,29 +33,38 @@ master_node(MasterId, Round, NumOfBikers) ->
         tob:broadcast_decision(UpdatedStatus, Round+1),
         tob:new_round(MasterId, Round+1),
         master_node(MasterId, Round+1, NumOfBikers);
-        true -> theEnd
+     true -> 
+        cli:show_ranking(Round, NumOfBikers),
+        cli:show_winner(Round, NumOfBikers)
      end.
 
 ordinary_node(MasterId, BikerId, Round, NumOfBikers) ->
     wait_for_master(MasterId, Round),
-    cli:show_previous_round(Round, NumOfBikers),
     TheEnd = game_rules:check_if_end(Round, NumOfBikers),
     if TheEnd == false ->
-        Input = game_rules:get_user_decision(BikerId, Round, NumOfBikers),
-        set_decision(Input, BikerId, Round),
+        play_game(BikerId,Round, NumOfBikers),
         ordinary_node(MasterId, BikerId, Round+1, NumOfBikers);
-        true -> theEnd
+    true -> 
+        cli:show_ranking(Round, NumOfBikers),
+        cli:show_winner(Round, NumOfBikers)
     end.
 
+play_game(BikerId,Round, NumOfBikers) ->
+    cli:show_ranking(Round, NumOfBikers),
+    cli:show_biker_info(BikerId, Round),
+    Input = game_rules:get_user_decision(BikerId, Round, NumOfBikers),
+    set_decision(Input, BikerId, Round).
+    
+
 set_decision(Input, BikerId, Round) -> 
-    {Strategy, Speed, Player, TS} = Input,
-    Decision = decision_tob_repository:create_decision(BikerId, Strategy, Player, Speed, TS),
+    {Strategy, Speed, Player} = Input,
+    Decision = decision_tob_repository:create_decision(BikerId, Strategy, Player, Speed, 0),
     biker_repository:save_decision(BikerId, Round, Decision).
 
 wait_for_master(MasterId, Round) ->
     {OperationState, Not} = biker_repository:get_master_notification(MasterId, Round), 
     if OperationState == ok, Not == not_found ->
-            timer:sleep(10000),
+            timer:sleep(1000),
             wait_for_master(MasterId, Round);
         true ->
             great

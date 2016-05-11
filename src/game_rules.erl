@@ -20,16 +20,22 @@ get_user_decision(BikerId, Round, NumOfBikers) ->
         true -> 
             Decision = {game_over, 0, NumOfBikers}
     end,
-	{FStrategy, FSpeed, FPlayer} = Decision,
-    {_,_,Micro} = os:timestamp(),
-    {FStrategy, FSpeed, FPlayer, Micro}.
+    Decision.
 
-validate_speed(Energy, Speed) ->
-    MaxSpeed = math:sqrt(Energy / 0.12),
+validate_speed(Energy, Speed, B) ->
+    MaxSpeed = max_speed(Energy, B),
 %    ?PRINT(MaxSpeed),
     MIN = lists:min([Speed, MaxSpeed]),
 %    ?PRINT(MIN),
     MIN.
+
+max_speed(Energy, B) ->
+    float(math:sqrt(Energy / B)).
+
+validate_position(Position) ->
+    if Position > ?DISTANCE -> ?DISTANCE;
+    true -> Position
+    end.
 
 check_if_can_play(BikerId, Round) ->
 %    io:format("Your Status (Round ~p, BikerId ~p):~n", [Round, BikerId]),
@@ -39,8 +45,15 @@ check_if_can_play(BikerId, Round) ->
         true -> false
     end.
 
+check_if_can_play_2(Position, Energy) -> 
+    if Energy > 0, Position < ?DISTANCE -> true;
+        true -> false
+    end.
+
+
 check_if_end(Round, NumOfBikers) ->
     Set = [ BikerId || BikerId <- lists:seq(0, NumOfBikers-1), check_if_can_play(BikerId, Round)],
+    ?PRINT(Set),
     Set == [].
 
 play(Decision, Round) ->
@@ -48,33 +61,36 @@ play(Decision, Round) ->
     {ok,Biker} = biker_repository:get_status(Decision#decision.bikerId, Round),
     case Decision#decision.strategy of
         myself ->
-            Speed = validate_speed(Biker#status.energy, Decision#decision.speed),
+            Speed = validate_speed(Biker#status.energy, Decision#decision.speed, ?B_MYSELF),
             Position = Biker#status.position + Speed,
-            Energy = Biker#status.energy - 0.12 * math:pow(Speed, 2);
+            Energy = Biker#status.energy - ?B_MYSELF * math:pow(Speed, 2);
         behind ->
             PlayerBehindId = Decision#decision.player,
             {ok,PlayerBehindDecision} = biker_repository:get_decision(PlayerBehindId, Round),
             {ok,PlayerBehind} = biker_repository:get_status(PlayerBehindId, Round),
-            Speed = validate_speed(Biker#status.energy, PlayerBehindDecision#decision.speed),
+            Speed = validate_speed(Biker#status.energy, PlayerBehindDecision#decision.speed, ?B_BEHIND),
             Position = PlayerBehind#status.position + Speed,
-            Energy = Biker#status.energy - 0.06 * math:pow(Speed, 2);
+            Energy = Biker#status.energy - ?B_BEHIND * math:pow(Speed, 2);
         boost ->
-            Speed = 3.87 * math:sqrt(Biker#status.energy),
+            Speed = ?BOOST * math:sqrt(Biker#status.energy),
             Position = Biker#status.position + Speed,
             Energy = 0.0;
         timeout ->  
-            Speed = validate_speed(Biker#status.energy, Biker#status.speed),
-            Energy = Biker#status.energy - 0.12 * math:pow(Speed, 2), 
-            Position = Biker#status.position + Speed
+            Speed = validate_speed(Biker#status.energy, Biker#status.speed, ?B_MYSELF),
+            Energy = Biker#status.energy - ?B_MYSELF * math:pow(Speed, 2), 
+            Position = Biker#status.position + Speed;
+        game_over -> Speed = Energy = Position = 0
     end,
     
     if Decision#decision.strategy == game_over -> NewBiker = Biker;
-        true -> 
-        CanPlay = check_if_can_play(Biker#status.id, Round),
-        if CanPlay == false -> Stop = Round;
-            true -> Stop = 0
+        true ->
+        CanPlay = check_if_can_play_2(Position, Energy),
+        if CanPlay == false -> 
+                Stop = Decision#decision.ts,
+                Pos = validate_position(Position);
+            true -> Stop = Biker#status.rank, Pos = Position
         end,
-        NewBiker = status_repository:create_status(Biker#status.id, Stop, Energy, Position, Speed)
+        NewBiker = status_repository:create_status(Biker#status.id, Stop, Energy, Pos, Speed)
     end,
 
     NewBiker.
