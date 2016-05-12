@@ -1,8 +1,10 @@
 -module(biker_repository).
 -export([
         save_status/3, 
+        save_status_beb/4, 
         save_decision/3, 
         get_status/2,
+        get_status_beb/3,
         get_decision/2,
         get_notification/2,
         set_notification/2,
@@ -14,12 +16,20 @@ save_status(BikerId, Round, Status) ->
     BikerKey=generate_key(BikerId, Round, "status"),
     kvstore:put(BikerKey, Status). 
 
+save_status_beb(OwnerId, BikerId, Round, Status) ->
+    BikerKey=generate_key_beb(OwnerId, BikerId, Round, "status"),
+    kvstore:put(BikerKey, Status). 
+
 save_decision(BikerId, Round, Decision) ->
     BikerKey=generate_key(BikerId, Round, "decision"),
     kvstore:put(BikerKey, Decision). 
 
 get_status(BikerId, Round) ->
     BikerKey=generate_key(BikerId, Round, "status"),
+    kvstore:get(BikerKey).
+
+get_status_beb(OwnerId, BikerId, Round) ->
+    BikerKey=generate_key_beb(OwnerId, BikerId, Round, "status"),
     kvstore:get(BikerKey).
 
 get_decision(BikerId, Round) ->
@@ -49,3 +59,6 @@ set_master_notification(MasterId, Round) ->
 %% @private
 generate_key(BikerId, Round, Type) ->
     [BikerId, Type, Round]. 
+
+generate_key_beb(OwnerId, BikerId, Round, Type) ->
+    [OwnerId, BikerId, Type, Round]. 

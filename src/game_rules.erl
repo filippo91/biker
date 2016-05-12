@@ -23,10 +23,11 @@ get_user_decision(BikerId, Round, NumOfBikers) ->
     Decision.
 
 validate_speed(Energy, Speed, B) ->
+    ?PRINT(Speed),
     MaxSpeed = max_speed(Energy, B),
-%    ?PRINT(MaxSpeed),
+    ?PRINT(MaxSpeed),
     MIN = lists:min([Speed, MaxSpeed]),
-%    ?PRINT(MIN),
+    ?PRINT(MIN),
     MIN.
 
 max_speed(Energy, B) ->
@@ -70,6 +71,8 @@ play(Decision, Round) ->
             {ok,PlayerBehind} = biker_repository:get_status(PlayerBehindId, Round),
             Speed = validate_speed(Biker#status.energy, PlayerBehindDecision#decision.speed, ?B_BEHIND),
             Position = PlayerBehind#status.position + Speed,
+            ?PRINT(Speed),
+            ?PRINT(PlayerBehindDecision#decision.speed),
             Energy = Biker#status.energy - ?B_BEHIND * math:pow(Speed, 2);
         boost ->
             Speed = ?BOOST * math:sqrt(Biker#status.energy),
