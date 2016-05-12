@@ -52,7 +52,7 @@ ordinary_node(MasterId, BikerId, Round, NumOfBikers) ->
 play_game(BikerId,Round, NumOfBikers) ->
     cli:show_ranking(Round, NumOfBikers),
     {ok, Me} = biker_repository:get_status(BikerId, Round),                 
-    cli:show_biker_info(Me, Round),
+    cli:show_biker_info(Me),
     Input = game_rules:get_user_decision(BikerId, Round, NumOfBikers),
     set_decision(Input, BikerId, Round).
     

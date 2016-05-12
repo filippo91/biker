@@ -7,18 +7,23 @@ get_user_decision(BikerId, Round, NumOfBikers) ->
     CanPlay = check_if_can_play(BikerId, Round),
     if CanPlay == true ->
             Input = cli:wait_cmd(?PROMPT_TIMEOUT),
-            if Input == timeout -> 
+    
+            if Input == timeout ->  
                     Decision = {timeout, 0, NumOfBikers};
-                Input == behind ->
+            true ->  
+                {Strategy, _, _} = Input, 
+                if Strategy == behind ->
                     % set speed to solve conflicts
-                    Status = biker_repository:get_status(BikerId, Round),
-                    {Strategy, _, Player} = Input,
+                    {ok,Status} = biker_repository:get_status(BikerId, Round), 
+                    {Stra, _, Player} = Input,
+                    ?PRINT(Status),
                     Speed = Status#status.speed,
-                    Decision = {Strategy, Speed, Player};
+                    Decision = {Stra, Speed, Player};
                 true -> Decision = Input
+                end
             end;
-        true -> 
-            Decision = {game_over, 0, NumOfBikers}
+    true ->  
+        Decision = {game_over, 0, NumOfBikers}
     end,
     Decision.
 
